@@ -42,7 +42,10 @@ def num_range(s: str) -> List[int]:
 @click.option('--class', 'class_idx', type=int, help='Class label (unconditional if not specified)')
 @click.option('--noise-mode', help='Noise mode', type=click.Choice(['const', 'random', 'none']), default='const', show_default=True)
 @click.option('--projected-w', help='Projection result file', type=str, metavar='FILE')
+@click.option('--walk_directions', help='file storage the salient direction', type=str, metavar='FILE')
 @click.option('--outdir', help='Where to save the output images', type=str, required=True, metavar='DIR')
+@click.option('--gen_w', help='out file for w samples', type=str, metavar='DIR')
+
 def generate_images(
     ctx: click.Context,
     network_pkl: str,
@@ -51,7 +54,9 @@ def generate_images(
     noise_mode: str,
     outdir: str,
     class_idx: Optional[int],
-    projected_w: Optional[str]
+    projected_w: Optional[str],
+    walk_directions: Optional[str],
+    gen_w: Optional[str]
 ):
     """Generate images using pretrained network pickle.
 
@@ -99,9 +104,6 @@ def generate_images(
             img = PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'{outdir}/proj{idx:02d}.png')
         return
 
-    if seeds is None:
-        ctx.fail('--seeds option is required when not using --projected-w')
-
     # Labels.
     label = torch.zeros([1, G.c_dim], device=device)
     if G.c_dim != 0:
@@ -111,6 +113,59 @@ def generate_images(
     else:
         if class_idx is not None:
             print ('warn: --class=lbl ignored when running on an unconditional network')
+
+
+    if walk_directions is not None:
+        if seeds is not None:
+            ws_dir = torch.load(walk_directions).to(device)
+            print("G.num_ws:", G.num_ws)
+            assert ws_dir.shape[1:] == (G.num_ws, G.w_dim)
+            
+            for seed_idx, seed in enumerate(seeds):
+                    print('Generating image for seed %d (%d/%d) ...' % (seed, seed_idx, len(seeds)))
+                    z = torch.from_numpy(np.random.RandomState(seed).randn(1, G.z_dim)).to(device)
+                    ws = G.mapping(z, label, truncation_psi=truncation_psi, truncation_cutoff=None)
+                    img = G.synthesis(ws, noise_mode=noise_mode)
+                    img = (img.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
+                    PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'{outdir}/walk_seed{seed:04d}.png')
+                    print("generated original image ...")
+                    # for each direction
+                    for idx, w_dir in enumerate(ws_dir):
+                        print("w_dir:", idx, w_dir.shape)
+                        # breakpoint
+                        ws_p = ws + 1.2*w_dir
+                        ws_m = ws - 1.2*w_dir
+                        img = G.synthesis(ws_p, noise_mode=noise_mode)
+                        img = (img.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
+                        PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'{outdir}/walk_seed{seed:04d}_dir{idx}.png')
+                        img = G.synthesis(ws_m, noise_mode=noise_mode)
+                        img = (img.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
+                        PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'{outdir}/walk_seed{seed:04d}_m_dir{idx}.png')
+
+            # for idx, w in enumerate(ws):
+            #     img = G.synthesis(w.unsqueeze(0), noise_mode=noise_mode)
+            #     img = (img.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
+            #     img = PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'{outdir}/proj{idx:02d}.png')
+            # return
+
+    if seeds is None:
+        ctx.fail('--seeds option is required when not using --projected-w')
+
+    # Generate latent.
+    if gen_w is not None:
+        ws_list = []
+        for seed_idx, seed in enumerate(seeds):            
+            z = torch.from_numpy(np.random.RandomState(seed).randn(10000, G.z_dim)).to(device)  
+            # z = torch.from_numpy(np.random.RandomState(0).randn(50, G.z_dim)).to(device)  
+            # mapping(z, c, truncation_psi=truncation_psi, truncation_cutoff=truncation_cutoff)   
+            ws = G.mapping(z, label, truncation_psi=truncation_psi, truncation_cutoff=None)[:,0,:].detach().cpu()
+            ws_list.append(ws) 
+            print(seed_idx, ws.shape)
+        full_ws = torch.concatenate(ws_list, axis=0)
+        print("full ws", full_ws.shape)
+        
+        torch.save(ws, gen_w)
+        return 
 
     # Generate images.
     for seed_idx, seed in enumerate(seeds):
