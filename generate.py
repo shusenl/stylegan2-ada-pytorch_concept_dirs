@@ -42,8 +42,10 @@ def num_range(s: str) -> List[int]:
 @click.option('--class', 'class_idx', type=int, help='Class label (unconditional if not specified)')
 @click.option('--noise-mode', help='Noise mode', type=click.Choice(['const', 'random', 'none']), default='const', show_default=True)
 @click.option('--projected-w', help='Projection result file', type=str, metavar='FILE')
-@click.option('--walk_directions', help='file storage the salient direction', type=str, metavar='FILE')
 @click.option('--outdir', help='Where to save the output images', type=str, required=True, metavar='DIR')
+
+#### newly added ###
+@click.option('--walk_directions', help='file stores the salient direction', type=str, metavar='FILE')
 @click.option('--gen_w', help='out file for w samples', type=str, metavar='DIR')
 
 def generate_images(
