@@ -135,8 +135,8 @@ def generate_images(
                     for idx, w_dir in enumerate(ws_dir):
                         print("w_dir:", idx, w_dir.shape)
                         # breakpoint
-                        ws_p = ws + 1.2*w_dir
-                        ws_m = ws - 1.2*w_dir
+                        ws_p = ws + 1.0*w_dir
+                        ws_m = ws - 1.0*w_dir
                         img = G.synthesis(ws_p, noise_mode=noise_mode)
                         img = (img.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
                         PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'{outdir}/walk_seed{seed:04d}_dir{idx}.png')
