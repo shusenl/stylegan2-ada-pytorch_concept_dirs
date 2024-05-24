@@ -129,20 +129,34 @@ def generate_images(
                     ws = G.mapping(z, label, truncation_psi=truncation_psi, truncation_cutoff=None)
                     img = G.synthesis(ws, noise_mode=noise_mode)
                     img = (img.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
-                    PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'{outdir}/walk_seed{seed:04d}.png')
+                    if img[0].cpu().numpy().shape[-1]==1:
+                        PIL.Image.fromarray(np.squeeze(img[0].cpu().numpy()), 'L').save(f'{outdir}/walk_seed{seed:04d}.png')
+                    else: 
+                        PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'{outdir}/walk_seed{seed:04d}.png')
                     print("generated original image ...")
                     # for each direction
                     for idx, w_dir in enumerate(ws_dir):
                         print("w_dir:", idx, w_dir.shape)
+                        if idx>15:
+                            continue
                         # breakpoint
                         ws_p = ws + 1.0*w_dir
                         ws_m = ws - 1.0*w_dir
                         img = G.synthesis(ws_p, noise_mode=noise_mode)
                         img = (img.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
-                        PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'{outdir}/walk_seed{seed:04d}_dir{idx}.png')
-                        img = G.synthesis(ws_m, noise_mode=noise_mode)
-                        img = (img.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
-                        PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'{outdir}/walk_seed{seed:04d}_m_dir{idx}.png')
+                        if img[0].cpu().numpy().shape[-1]==1:
+                            PIL.Image.fromarray(np.squeeze(img[0].cpu().numpy()), 'L').save(f'{outdir}/walk_seed{seed:04d}_dir{idx}.png')
+                        else:
+                            PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'{outdir}/walk_seed{seed:04d}_dir{idx}.png')
+
+                        negative_dir = False
+                        if negative_dir:
+                            img = G.synthesis(ws_m, noise_mode=noise_mode)
+                            img = (img.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
+                            if img[0].cpu().numpy().shape[-1]==1:
+                                PIL.Image.fromarray(np.squeeze(img[0].cpu().numpy()), 'L').save(f'{outdir}/walk_seed{seed:04d}_m_dir{idx}.png')
+                            else:
+                                PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'{outdir}/walk_seed{seed:04d}_m_dir{idx}.png')
 
             # for idx, w in enumerate(ws):
             #     img = G.synthesis(w.unsqueeze(0), noise_mode=noise_mode)
@@ -175,7 +189,13 @@ def generate_images(
         z = torch.from_numpy(np.random.RandomState(seed).randn(1, G.z_dim)).to(device)
         img = G(z, label, truncation_psi=truncation_psi, noise_mode=noise_mode)
         img = (img.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
-        PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'{outdir}/seed{seed:04d}.png')
+        print(img[0].size())
+        # PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'{outdir}/seed{seed:04d}.png')
+        print("image size:", img[0].cpu().numpy().shape)
+        if img[0].cpu().numpy().shape[-1]==1:
+            PIL.Image.fromarray(np.squeeze(img[0].cpu().numpy()), 'L').save(f'{outdir}/seed{seed:04d}.png')
+        else:
+            PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'{outdir}/seed{seed:04d}.png')
 
 
 #----------------------------------------------------------------------------
