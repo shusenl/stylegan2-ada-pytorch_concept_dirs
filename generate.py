@@ -86,7 +86,7 @@ def generate_images(
     """
 
     print('Loading networks from "%s"...' % network_pkl)
-    device = torch.device('cuda')
+    device = torch.device('mps')
     with dnnlib.util.open_url(network_pkl) as f:
         G = legacy.load_network_pkl(f)['G_ema'].to(device) # type: ignore
 
@@ -125,7 +125,7 @@ def generate_images(
             
             for seed_idx, seed in enumerate(seeds):
                     print('Generating image for seed %d (%d/%d) ...' % (seed, seed_idx, len(seeds)))
-                    z = torch.from_numpy(np.random.RandomState(seed).randn(1, G.z_dim)).to(device)
+                    z = torch.from_numpy(np.random.RandomState(seed).randn(1, G.z_dim).astype(np.float32)).to(device)
                     ws = G.mapping(z, label, truncation_psi=truncation_psi, truncation_cutoff=None)
                     img = G.synthesis(ws, noise_mode=noise_mode)
                     img = (img.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
@@ -186,7 +186,7 @@ def generate_images(
     # Generate images.
     for seed_idx, seed in enumerate(seeds):
         print('Generating image for seed %d (%d/%d) ...' % (seed, seed_idx, len(seeds)))
-        z = torch.from_numpy(np.random.RandomState(seed).randn(1, G.z_dim)).to(device)
+        z = torch.from_numpy(np.random.RandomState(seed).randn(1, G.z_dim).astype(np.float32)).to(device)
         img = G(z, label, truncation_psi=truncation_psi, noise_mode=noise_mode)
         img = (img.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
         print(img[0].size())
