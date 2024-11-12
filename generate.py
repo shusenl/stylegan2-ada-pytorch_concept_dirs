@@ -46,7 +46,7 @@ def num_range(s: str) -> List[int]:
 
 #### newly added ###
 @click.option('--walk_directions', help='file stores the salient direction', type=str, metavar='FILE')
-@click.option('--gen_w', help='out file for w samples', type=str, metavar='DIR')
+@click.option('--gen_w', help='out file for w samples', type=str, metavar='DIR', default=None)
 
 def generate_images(
     ctx: click.Context,
@@ -80,9 +80,14 @@ def generate_images(
         --network=https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada-pytorch/pretrained/cifar10.pkl
 
     \b
+    # Generate latent code
+    python generate.py --outdir=out --gen_w latent_sample_20M_ffhq.pt --seeds=1-200 --network=https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada-pytorch/pretrained/ffhq.pkl
+
+    \b
     # Render an image from projected W
-    python generate.py --outdir=out --projected_w=projected_w.npz \\
-        --network=https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada-pytorch/pretrained/metfaces.pkl
+    python generate.py --outdir=./ --projected_w=projected_w.npz \\
+        --network=https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada-pytorch/pretrained/ffhq.pkl
+        
     """
 
     print('Loading networks from "%s"...' % network_pkl)
@@ -171,16 +176,16 @@ def generate_images(
     if gen_w is not None:
         ws_list = []
         for seed_idx, seed in enumerate(seeds):            
-            z = torch.from_numpy(np.random.RandomState(seed).randn(10000, G.z_dim)).to(device)  
+            z = torch.from_numpy(np.random.RandomState(seed).randn(100000, G.z_dim)).to(device)  
             # z = torch.from_numpy(np.random.RandomState(0).randn(50, G.z_dim)).to(device)  
             # mapping(z, c, truncation_psi=truncation_psi, truncation_cutoff=truncation_cutoff)   
             ws = G.mapping(z, label, truncation_psi=truncation_psi, truncation_cutoff=None)[:,0,:].detach().cpu()
             ws_list.append(ws) 
             print(seed_idx, ws.shape)
-        full_ws = torch.concatenate(ws_list, axis=0)
+        full_ws = torch.cat(ws_list, axis=0)
         print("full ws", full_ws.shape)
         
-        torch.save(ws, gen_w)
+        torch.save(full_ws, gen_w)
         return 
 
     # Generate images.
