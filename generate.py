@@ -46,7 +46,8 @@ def num_range(s: str) -> List[int]:
 
 #### newly added ###
 @click.option('--walk_directions', help='file stores the salient direction', type=str, metavar='FILE')
-@click.option('--gen_w', help='out file for w samples', type=str, metavar='DIR', default=None)
+@click.option('--gen_w', help='out file for w samples', type=str, metavar='FILE', default=None)
+@click.option('--walk_distance', help='distance in latent space (W)', type=float, default = 1.0)
 
 def generate_images(
     ctx: click.Context,
@@ -58,7 +59,8 @@ def generate_images(
     class_idx: Optional[int],
     projected_w: Optional[str],
     walk_directions: Optional[str],
-    gen_w: Optional[str]
+    gen_w: Optional[str],
+    walk_distance: Optional[str]
 ):
     """Generate images using pretrained network pickle.
 
@@ -145,8 +147,8 @@ def generate_images(
                         if idx>15:
                             continue
                         # breakpoint
-                        ws_p = ws + 1.0*w_dir
-                        ws_m = ws - 1.0*w_dir
+                        ws_p = ws + walk_distance*w_dir
+                        ws_m = ws - walk_distance*w_dir
                         img = G.synthesis(ws_p, noise_mode=noise_mode)
                         img = (img.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
                         if img[0].cpu().numpy().shape[-1]==1:
