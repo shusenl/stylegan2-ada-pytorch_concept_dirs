@@ -46,6 +46,7 @@ def num_range(s: str) -> List[int]:
 
 #### newly added ###
 @click.option('--walk_directions', help='file stores the salient direction', type=str, metavar='FILE')
+@click.option('--walk_distance', help='distance to walk along the salient direction', type=float, metavar='FILE', default=1.0)
 @click.option('--gen_w', help='out file for w samples', type=str, metavar='DIR')
 
 def generate_images(
@@ -58,7 +59,8 @@ def generate_images(
     class_idx: Optional[int],
     projected_w: Optional[str],
     walk_directions: Optional[str],
-    gen_w: Optional[str]
+    gen_w: Optional[str],
+    walk_distance: Optional[float]
 ):
     """Generate images using pretrained network pickle.
 
@@ -137,11 +139,11 @@ def generate_images(
                     # for each direction
                     for idx, w_dir in enumerate(ws_dir):
                         print("w_dir:", idx, w_dir.shape)
-                        if idx>15:
-                            continue
+                        # if idx>15:
+                        #     continue
                         # breakpoint
-                        ws_p = ws + 1.0*w_dir
-                        ws_m = ws - 1.0*w_dir
+                        ws_p = ws + walk_distance*w_dir
+                        ws_m = ws - walk_distance*w_dir
                         img = G.synthesis(ws_p, noise_mode=noise_mode)
                         img = (img.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
                         if img[0].cpu().numpy().shape[-1]==1:
@@ -171,7 +173,7 @@ def generate_images(
     if gen_w is not None:
         ws_list = []
         for seed_idx, seed in enumerate(seeds):            
-            z = torch.from_numpy(np.random.RandomState(seed).randn(10000, G.z_dim)).to(device)  
+            z = torch.from_numpy(np.random.RandomState(seed).randn(10000, G.z_dim).astype(np.float32)).to(device)  
             # z = torch.from_numpy(np.random.RandomState(0).randn(50, G.z_dim)).to(device)  
             # mapping(z, c, truncation_psi=truncation_psi, truncation_cutoff=truncation_cutoff)   
             ws = G.mapping(z, label, truncation_psi=truncation_psi, truncation_cutoff=None)[:,0,:].detach().cpu()
@@ -180,7 +182,7 @@ def generate_images(
         full_ws = torch.concatenate(ws_list, axis=0)
         print("full ws", full_ws.shape)
         
-        torch.save(ws, gen_w)
+        torch.save(full_ws, gen_w)
         return 
 
     # Generate images.
